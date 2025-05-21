@@ -988,6 +988,21 @@
             filteredItems = filteredItems.filter(item => item.category === currentCategory);
         }
         
+        // 按购买日期排序，最近的在前面
+        filteredItems.sort((a, b) => {
+            // 已购买且有日期的排在前面
+            if (a.purchaseDate && !b.purchaseDate) return -1;
+            if (!a.purchaseDate && b.purchaseDate) return 1;
+            
+            // 都有购买日期，按日期降序排列（新→旧）
+            if (a.purchaseDate && b.purchaseDate) {
+                return new Date(b.purchaseDate) - new Date(a.purchaseDate);
+            }
+            
+            // 其它情况保持原顺序
+            return 0;
+        });
+        
         // 检查是否有商品
         if (filteredItems.length === 0) {
             const emptyState = `
