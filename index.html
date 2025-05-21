@@ -870,25 +870,39 @@
             // 文件大小限制（2MB）
             if (file.size > 2 * 1024 * 1024) {
                 if (confirm('图片大于2MB，是否压缩后再上传？')) {
-                    compressImage(file, 0.6, 1200); // 压缩图片
+                    compressImage(file, 0.5, 800); // 降低质量和尺寸更多
                     return;
                 }
             }
             
             const reader = new FileReader();
             reader.onload = function(e) {
-                // 将图片显示在预览区
-                previewImg.src = e.target.result;
-                imagePreview.style.display = 'block';
-                
-                // 将Base64编码的图片URL存入输入框
-                document.getElementById('item-image').value = e.target.result;
+                try {
+                    // 先测试预览图片是否可以加载
+                    const img = new Image();
+                    img.onload = function() {
+                        // 图片成功加载后再显示预览和设置值
+                        previewImg.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                        document.getElementById('item-image').value = e.target.result;
+                    };
+                    
+                    img.onerror = function() {
+                        alert('图片加载失败，可能太大。将自动尝试压缩。');
+                        compressImage(file, 0.4, 600);
+                    };
+                    
+                    img.src = e.target.result;
+                } catch (err) {
+                    alert('处理图片时出错，将尝试更低质量压缩。');
+                    compressImage(file, 0.3, 500);
+                }
             };
             
             reader.readAsDataURL(file);
         }
         
-        // 图片压缩函数
+        // 图片压缩函数优化
         function compressImage(file, quality, maxSize) {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -912,6 +926,14 @@
                         }
                     }
                     
+                    // iPhone上处理大图片时可能内存不足，限制最大尺寸
+                    const maxAllowedSize = 1200;
+                    if (width > maxAllowedSize || height > maxAllowedSize) {
+                        const ratio = Math.min(maxAllowedSize / width, maxAllowedSize / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+                    
                     canvas.width = width;
                     canvas.height = height;
                     
@@ -919,19 +941,19 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // 将canvas转为DataURL
-                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    // 降低质量更多，确保iPhone可以处理
+                    const compressedImage = canvas.toDataURL('image/jpeg', quality);
                     
                     // 将图片显示在预览区
-                    previewImg.src = dataUrl;
+                    previewImg.src = compressedImage;
                     imagePreview.style.display = 'block';
                     
                     // 将Base64编码的图片URL存入输入框
-                    document.getElementById('item-image').value = dataUrl;
+                    document.getElementById('item-image').value = compressedImage;
                     
                     // 显示压缩后大小
                     const originalSize = Math.round(file.size / 1024);
-                    const compressedSize = Math.round(dataUrl.length * 0.75 / 1024);
+                    const compressedSize = Math.round(compressedImage.length * 0.75 / 1024);
                     console.log(`图片已压缩: ${originalSize}KB -> ${compressedSize}KB, 压缩率: ${Math.round(compressedSize/originalSize*100)}%`);
                 };
             };
@@ -1099,7 +1121,8 @@
                 <div class="item-actions">
                     <button class="action-btn edit">编辑</button>
                     <button class="action-btn delete">删除</button>
-                    ${item.status === 'purchased' ? `<button class="action-btn history">购买历史 ${item.purchaseHistory && item.purchaseHistory.length ? `(${item.purchaseHistory.length})` : ''}</button>` : ''}
+                    ${item.status === 'purchased' ? 
+                      `<button class="action-btn history">购买历史${item.purchaseHistory && item.purchaseHistory.length > 1 ? ` (${item.purchaseHistory.length})` : ''}</button>` : ''}
                     ${item.link ? `<a href="${item.link}" target="_blank" class="action-btn">购买链接</a>` : ''}
                 </div>
             </div>
